@@ -1,0 +1,40 @@
+# Maintainer: pwarnimont <pwarnimo@gmail.com>
+#
+# Builds from this local checkout: run `makepkg -si` in this directory.
+
+pkgname=visualizer-pw
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Terminal audio visualizer for PipeWire/PulseAudio: spectrum, oscilloscope, VU and correlation meters"
+arch=('x86_64' 'aarch64')
+license=('MIT')
+depends=('libpulse' 'gcc-libs' 'glibc')
+optdepends=('pipewire-pulse: capture from PipeWire')
+makedepends=('cargo')
+
+_root="$(realpath "$startdir/../..")"
+
+prepare() {
+  cd "$_root"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$_root"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR="$srcdir/target"
+  cargo build --frozen --release
+}
+
+check() {
+  cd "$_root"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR="$srcdir/target"
+  cargo test --frozen --release
+}
+
+package() {
+  install -Dm755 "$srcdir/target/release/$pkgname" "$pkgdir/usr/bin/$pkgname"
+  install -Dm644 "$_root/README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
+}
