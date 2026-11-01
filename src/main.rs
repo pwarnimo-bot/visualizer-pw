@@ -126,18 +126,29 @@ impl App {
     }
 }
 
-const USAGE: &str = "\
-visualizer-pw — terminal audio visualizer for PipeWire/PulseAudio
+#[cfg(unix)]
+const SOURCE_HELP: &str = "Capture from this source instead of the default
+                          output's monitor (see --list)";
+#[cfg(windows)]
+const SOURCE_HELP: &str = "Capture this output device instead of the default
+                          output (name as shown by --list)";
+
+fn usage() -> String {
+    format!(
+        "\
+visualizer-pw — terminal audio visualizer (PipeWire/PulseAudio, Windows WASAPI)
 
 USAGE:
     visualizer-pw [--source <NAME>]
 
 OPTIONS:
-    -s, --source <NAME>   Capture from this source instead of the default
-                          output's monitor (see `pactl list short sources`)
+    -s, --source <NAME>   {SOURCE_HELP}
+    -l, --list            List capturable sources and exit
     -h, --help            Show this help
 
-KEYS (in the app): press h or ? for the full list.";
+KEYS (in the app): press h or ? for the full list."
+    )
+}
 
 fn main() -> Result<()> {
     let mut source = None;
@@ -147,11 +158,17 @@ fn main() -> Result<()> {
             "-s" | "--source" => {
                 source = Some(args.next().ok_or_else(|| anyhow::anyhow!("--source needs a value"))?)
             }
-            "-h" | "--help" => {
-                println!("{USAGE}");
+            "-l" | "--list" => {
+                for name in audio::list_sources()? {
+                    println!("{name}");
+                }
                 return Ok(());
             }
-            other => anyhow::bail!("unknown argument: {other}\n\n{USAGE}"),
+            "-h" | "--help" => {
+                println!("{}", usage());
+                return Ok(());
+            }
+            other => anyhow::bail!("unknown argument: {other}\n\n{}", usage()),
         }
     }
 

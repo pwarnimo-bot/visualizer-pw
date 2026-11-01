@@ -1,8 +1,6 @@
-//! Audio capture from PipeWire (via its PulseAudio layer).
+//! Linux backend: PipeWire via its PulseAudio layer.
 //!
-//! A background thread records the monitor of the default output (or a
-//! user-chosen source) and writes stereo frames into a ring buffer that the
-//! UI thread snapshots once per frame.
+//! Records the monitor of the default output (or a user-chosen source).
 
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -15,55 +13,12 @@ use libpulse_binding::sample::{Format, Spec};
 use libpulse_binding::stream::Direction;
 use libpulse_simple_binding::Simple;
 
-pub const RATE: u32 = 48_000;
-const RING_LEN: usize = 16_384;
+use super::{RATE, Shared, set_status};
+
 /// Frames per read: ~10 ms keeps latency low without hammering the server.
 const CHUNK_FRAMES: usize = 512;
 
-pub struct Ring {
-    l: Vec<f32>,
-    r: Vec<f32>,
-    pos: usize,
-}
-
-impl Ring {
-    fn new() -> Self {
-        Self { l: vec![0.0; RING_LEN], r: vec![0.0; RING_LEN], pos: 0 }
-    }
-
-    fn push(&mut self, l: f32, r: f32) {
-        self.l[self.pos] = l;
-        self.r[self.pos] = r;
-        self.pos = (self.pos + 1) % RING_LEN;
-    }
-
-    /// Copies the most recent `n` frames, oldest first.
-    pub fn latest(&self, n: usize, out_l: &mut Vec<f32>, out_r: &mut Vec<f32>) {
-        let n = n.min(RING_LEN);
-        out_l.clear();
-        out_r.clear();
-        let start = (self.pos + RING_LEN - n) % RING_LEN;
-        for i in 0..n {
-            let idx = (start + i) % RING_LEN;
-            out_l.push(self.l[idx]);
-            out_r.push(self.r[idx]);
-        }
-    }
-}
-
-pub struct Shared {
-    pub ring: Mutex<Ring>,
-    /// Human-readable description of what we are capturing (or the last error).
-    pub status: Mutex<String>,
-}
-
-/// Starts capturing. With `source == None` the default output's monitor is
-/// used, and capture reconnects whenever the default output changes.
-pub fn start(source: Option<String>) -> Arc<Shared> {
-    let shared = Arc::new(Shared {
-        ring: Mutex::new(Ring::new()),
-        status: Mutex::new("connecting…".into()),
-    });
+pub fn spawn(shared: Arc<Shared>, source: Option<String>) {
     let reconnect = Arc::new(AtomicBool::new(false));
     let sink_name = Arc::new(Mutex::new(default_sink().unwrap_or_default()));
 
@@ -73,9 +28,16 @@ pub fn start(source: Option<String>) -> Arc<Shared> {
         thread::spawn(move || watch_default_sink(reconnect, sink_name));
     }
 
-    let s = shared.clone();
-    thread::spawn(move || capture_loop(s, source, reconnect, sink_name));
-    shared
+    thread::spawn(move || capture_loop(shared, source, reconnect, sink_name));
+}
+
+pub fn list_sources() -> anyhow::Result<Vec<String>> {
+    let out = Command::new("pactl").args(["list", "short", "sources"]).output()?;
+    anyhow::ensure!(out.status.success(), "pactl failed");
+    Ok(String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter_map(|l| l.split('\t').nth(1).map(str::to_string))
+        .collect())
 }
 
 fn capture_loop(
@@ -135,18 +97,9 @@ fn capture_loop(
                 thread::sleep(Duration::from_millis(500));
                 break;
             }
-            let mut ring = shared.ring.lock().unwrap();
-            for frame in buf.chunks_exact(frame_bytes) {
-                let l = f32::from_le_bytes(frame[0..4].try_into().unwrap());
-                let r = f32::from_le_bytes(frame[4..8].try_into().unwrap());
-                ring.push(l, r);
-            }
+            shared.ring.lock().unwrap().push_f32le(&buf);
         }
     }
-}
-
-fn set_status(shared: &Shared, msg: String) {
-    *shared.status.lock().unwrap() = msg;
 }
 
 /// Polls the default sink so capture can follow it when the user switches
