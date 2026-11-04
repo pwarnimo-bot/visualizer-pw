@@ -57,7 +57,7 @@ cargo build --release --target x86_64-pc-windows-gnu
 | `+` `-` / `↑` `↓`, `0` | gain (spectrum & VU), reset |
 | `s` | number of spectrum bars |
 | `m` | scope mode |
-| `c` | colour theme (classic, amber, neon) |
+| `c` | colour theme (classic, amber, neon, red, a320) |
 | `p` / `space` | freeze |
 | `h` / `?` | help |
 | `q` / `Esc` | quit |

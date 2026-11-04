@@ -27,7 +27,7 @@ impl Theme {
     }
 }
 
-pub static THEMES: [Theme; 3] = [
+pub static THEMES: [Theme; 5] = [
     Theme {
         name: "classic",
         stops: [(40, 200, 60), (230, 220, 40), (240, 50, 40)],
@@ -60,5 +60,30 @@ pub static THEMES: [Theme; 3] = [
         text: Color::Rgb(210, 190, 255),
         needle: Color::Rgb(255, 255, 255),
         peak: Color::Rgb(255, 255, 255),
+    },
+    Theme {
+        name: "red",
+        // The low stop also colours footer keys, so it stays readable on black.
+        stops: [(170, 20, 30), (235, 40, 45), (255, 140, 110)],
+        wave_l: Color::Rgb(255, 70, 60),
+        wave_r: Color::Rgb(255, 150, 120),
+        border: Color::Rgb(135, 55, 55),
+        dim: Color::Rgb(58, 18, 20),
+        text: Color::Rgb(245, 185, 175),
+        needle: Color::Rgb(255, 235, 225),
+        peak: Color::Rgb(255, 225, 215),
+    },
+    // Airbus cockpit: ECAM/PFD colour coding on the blue-grey panel. Green is
+    // normal, amber caution, red warning, cyan selected, magenta managed target.
+    Theme {
+        name: "a320",
+        stops: [(0, 225, 90), (255, 160, 0), (255, 30, 30)],
+        wave_l: Color::Rgb(0, 235, 100),
+        wave_r: Color::Rgb(0, 215, 235),
+        border: Color::Rgb(112, 136, 150),
+        dim: Color::Rgb(36, 46, 54),
+        text: Color::Rgb(235, 240, 240),
+        needle: Color::Rgb(255, 235, 0),
+        peak: Color::Rgb(255, 60, 220),
     },
 ];
