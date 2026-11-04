@@ -3,7 +3,7 @@
 # Builds from this local checkout: run `makepkg -si` in this directory.
 
 pkgname=visualizer-pw
-pkgver=0.2.0
+pkgver=0.3.0
 pkgrel=1
 pkgdesc="Terminal audio visualizer for PipeWire/PulseAudio: spectrum, oscilloscope, VU and correlation meters"
 arch=('x86_64' 'aarch64')
