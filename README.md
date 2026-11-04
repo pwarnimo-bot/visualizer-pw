@@ -55,6 +55,7 @@ cargo build --release --target x86_64-pc-windows-gnu
 |---|---|
 | `1` `2` `3` `4` / `Tab` | dashboard · spectrum · scope · meters |
 | `+` `-` / `↑` `↓`, `0` | gain (spectrum & VU), reset |
+| `,` `.` / `←` `→` | graph speed, ¼× to 4× (bars, meters, scope sweep) |
 | `s` | number of spectrum bars |
 | `m` | scope mode |
 | `c` | colour theme (classic, amber, neon, red, a320) |

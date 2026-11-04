@@ -15,6 +15,8 @@ use theme::{THEMES, Theme};
 const FRAME: Duration = Duration::from_micros(16_667);
 /// 0 means "fit to width".
 const BAR_COUNTS: [usize; 7] = [0, 16, 32, 48, 64, 96, 128];
+const SPEEDS: [f32; 8] = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0];
+const NORMAL_SPEED_IDX: usize = 3;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum View {
@@ -37,6 +39,7 @@ pub struct App {
     pub theme_idx: usize,
     pub sens_db: f32,
     pub bars_idx: usize,
+    pub speed_idx: usize,
     pub frozen: bool,
     pub help: bool,
     pub quit: bool,
@@ -57,6 +60,7 @@ impl App {
             theme_idx: 0,
             sens_db: 0.0,
             bars_idx: 0,
+            speed_idx: NORMAL_SPEED_IDX,
             frozen: false,
             help: false,
             quit: false,
@@ -71,6 +75,10 @@ impl App {
 
     pub fn theme(&self) -> &'static Theme {
         &THEMES[self.theme_idx]
+    }
+
+    pub fn speed(&self) -> f32 {
+        SPEEDS[self.speed_idx]
     }
 
     pub fn bar_count(&self, width: u16) -> usize {
@@ -110,6 +118,10 @@ impl App {
                 self.sens_db = (self.sens_db - 3.0).max(-30.0)
             }
             KeyCode::Char('0') => self.sens_db = 0.0,
+            KeyCode::Char('.') | KeyCode::Right => {
+                self.speed_idx = (self.speed_idx + 1).min(SPEEDS.len() - 1)
+            }
+            KeyCode::Char(',') | KeyCode::Left => self.speed_idx = self.speed_idx.saturating_sub(1),
             KeyCode::Char('c') => self.theme_idx = (self.theme_idx + 1) % THEMES.len(),
             KeyCode::Char('s') => self.bars_idx = (self.bars_idx + 1) % BAR_COUNTS.len(),
             KeyCode::Char('m') => {
@@ -190,7 +202,7 @@ fn run(terminal: &mut DefaultTerminal, shared: &audio::Shared) -> Result<()> {
 
         if !app.frozen {
             shared.ring.lock().unwrap().latest(FFT_N, &mut app.l, &mut app.r);
-            app.meters.update(&app.l, &app.r, dt, app.sens_db);
+            app.meters.update(&app.l, &app.r, dt, app.speed(), app.sens_db);
         }
         app.source = shared.status.lock().unwrap().clone();
 

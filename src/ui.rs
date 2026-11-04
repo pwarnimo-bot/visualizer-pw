@@ -17,6 +17,7 @@ const BLOCKS: [char; 9] = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇',
 const LED_MIN_DB: f32 = -60.0;
 
 pub fn draw(f: &mut Frame, app: &mut App, dt: f32) {
+    let dt = dt * app.speed();
     let [main, footer_area] = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).areas(f.area());
 
     match app.view {
@@ -248,7 +249,8 @@ fn waveform(f: &mut Frame, area: Rect, app: &App, gain: f32, split: bool) {
     let th = app.theme();
     let (l, r) = (&app.l, &app.r);
     let len = l.len();
-    let win = 1024.min(len / 2);
+    // Sweep speed: a faster sweep shows a shorter stretch of the signal.
+    let win = ((1024.0 / app.speed()) as usize).min(len / 2);
 
     // Trigger on the most recent rising zero crossing so the trace stands still.
     let search_end = len - win;
@@ -547,7 +549,7 @@ fn footer(f: &mut Frame, area: Rect, app: &App) {
     let mut spans = vec![
         Span::styled(" ♪ ", Style::new().fg(th.grad(0.6))),
         Span::styled(app.source.clone(), Style::new().fg(th.text)),
-        txt(format!("  │ {view} │ gain {:+.0} dB │ {} ", app.sens_db, th.name)),
+        txt(format!("  │ {view} │ gain {:+.0} dB │ speed {}× │ {} ", app.sens_db, app.speed(), th.name)),
     ];
     if app.frozen {
         spans.push(Span::styled(" FROZEN ", Style::new().fg(Color::Black).bg(th.grad(0.6))));
@@ -572,6 +574,7 @@ fn help_popup(f: &mut Frame, th: &Theme) {
         ("1 2 3 4 / Tab", "dashboard · spectrum · scope · meters"),
         ("+ / - / ↑ ↓", "gain (spectrum & VU sensitivity)"),
         ("0", "reset gain"),
+        (", / . / ← →", "graph speed: slower · faster"),
         ("s", "spectrum bar count"),
         ("m", "scope mode: overlay · split · goniometer"),
         ("c", "colour theme"),

@@ -16,6 +16,8 @@ const FLOOR_DB: f32 = -70.0;
 const CEIL_DB: f32 = -10.0;
 /// Pink-noise compensation so treble isn't permanently buried under bass.
 const TILT_DB_PER_OCT: f32 = 3.0;
+/// Fraction of the distance to the target left after one 60 Hz frame.
+const BAR_RISE_LEFT: f32 = 0.3;
 const BAR_FALL_PER_S: f32 = 1.4;
 const PEAK_HOLD_S: f32 = 0.5;
 const PEAK_GRAVITY: f32 = 2.0;
@@ -109,7 +111,7 @@ impl Spectrum {
 
             let bar = &mut self.bars[i];
             if target > *bar {
-                *bar += (target - *bar) * 0.7;
+                *bar += (target - *bar) * (1.0 - BAR_RISE_LEFT.powf(dt * 60.0));
             } else {
                 *bar = (*bar - BAR_FALL_PER_S * dt).max(target);
             }
@@ -163,14 +165,18 @@ impl Meters {
         Self { peak_db: [-120.0; 2], hold_db: [-120.0; 2], vu_db: [-60.0; 2], ..Default::default() }
     }
 
-    pub fn update(&mut self, l: &[f32], r: &[f32], dt: f32, sens_db: f32) {
+    /// `speed` scales the meters' motion. `dt` stays real time for the peak
+    /// window, which must cover every new sample, and the clip indicator.
+    pub fn update(&mut self, l: &[f32], r: &[f32], dt: f32, speed: f32, sens_db: f32) {
+        let real_dt = dt;
+        let dt = dt * speed;
         self.update_correlation(l, r, dt);
         for (c, s) in [l, r].into_iter().enumerate() {
             if s.is_empty() {
                 continue;
             }
             // Sample peak over (roughly) what arrived since the last frame.
-            let n_pk = ((dt * RATE as f32) as usize + 256).min(s.len());
+            let n_pk = ((real_dt * RATE as f32) as usize + 256).min(s.len());
             let pk = s[s.len() - n_pk..].iter().fold(0f32, |a, &x| a.max(x.abs()));
             let pk_db = to_db(pk);
 
@@ -187,7 +193,7 @@ impl Meters {
             } else {
                 self.hold_db[c] -= HOLD_FALL_DB_PER_S * dt;
             }
-            self.clip_t[c] = if pk >= 0.999 { 2.0 } else { (self.clip_t[c] - dt).max(0.0) };
+            self.clip_t[c] = if pk >= 0.999 { 2.0 } else { (self.clip_t[c] - real_dt).max(0.0) };
 
             let n_rms = (RATE as usize / 20).min(s.len());
             let ms = s[s.len() - n_rms..].iter().map(|x| x * x).sum::<f32>() / n_rms as f32;
