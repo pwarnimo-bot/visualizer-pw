@@ -1,5 +1,12 @@
 use ratatui::style::Color;
 
+/// Instrument-panel look: a solid screen, square frames, lit title placards
+/// and hard colour bands instead of a smooth gradient.
+pub struct Cockpit {
+    pub screen: Color,
+    pub placard: Color,
+}
+
 pub struct Theme {
     pub name: &'static str,
     /// Gradient stops: low → mid → high (green/yellow/red in the classic look).
@@ -11,12 +18,17 @@ pub struct Theme {
     pub text: Color,
     pub needle: Color,
     pub peak: Color,
+    pub cockpit: Option<Cockpit>,
 }
 
 impl Theme {
     /// Colour at `t` (0..1) along the theme's gradient.
     pub fn grad(&self, t: f32) -> Color {
         let t = t.clamp(0.0, 1.0);
+        if self.cockpit.is_some() {
+            let (r, g, b) = self.stops[if t < 0.6 { 0 } else if t < 0.85 { 1 } else { 2 }];
+            return Color::Rgb(r, g, b);
+        }
         let (a, b, u) = if t < 0.6 {
             (self.stops[0], self.stops[1], t / 0.6)
         } else {
@@ -38,6 +50,7 @@ pub static THEMES: [Theme; 5] = [
         text: Color::Rgb(180, 200, 185),
         needle: Color::Rgb(245, 245, 235),
         peak: Color::Rgb(240, 240, 240),
+        cockpit: None,
     },
     Theme {
         name: "amber",
@@ -49,6 +62,7 @@ pub static THEMES: [Theme; 5] = [
         text: Color::Rgb(255, 200, 120),
         needle: Color::Rgb(255, 240, 200),
         peak: Color::Rgb(255, 250, 220),
+        cockpit: None,
     },
     Theme {
         name: "neon",
@@ -60,6 +74,7 @@ pub static THEMES: [Theme; 5] = [
         text: Color::Rgb(210, 190, 255),
         needle: Color::Rgb(255, 255, 255),
         peak: Color::Rgb(255, 255, 255),
+        cockpit: None,
     },
     Theme {
         name: "red",
@@ -72,18 +87,21 @@ pub static THEMES: [Theme; 5] = [
         text: Color::Rgb(245, 185, 175),
         needle: Color::Rgb(255, 235, 225),
         peak: Color::Rgb(255, 225, 215),
+        cockpit: None,
     },
-    // Airbus cockpit: ECAM/PFD colour coding on the blue-grey panel. Green is
-    // normal, amber caution, red warning, cyan selected, magenta managed target.
+    // Airbus cockpit: ECAM/PFD colour coding on black display units, framed by
+    // the blue-grey panel. Cyan selected, green normal, magenta managed target,
+    // amber caution, red warning.
     Theme {
         name: "a320",
-        stops: [(0, 225, 90), (255, 160, 0), (255, 30, 30)],
+        stops: [(0, 210, 235), (255, 160, 0), (255, 30, 30)],
         wave_l: Color::Rgb(0, 235, 100),
-        wave_r: Color::Rgb(0, 215, 235),
+        wave_r: Color::Rgb(255, 60, 220),
         border: Color::Rgb(112, 136, 150),
         dim: Color::Rgb(36, 46, 54),
         text: Color::Rgb(235, 240, 240),
         needle: Color::Rgb(255, 235, 0),
         peak: Color::Rgb(255, 60, 220),
+        cockpit: Some(Cockpit { screen: Color::Rgb(4, 6, 8), placard: Color::Rgb(62, 82, 96) }),
     },
 ];

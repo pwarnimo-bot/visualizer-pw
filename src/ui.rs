@@ -29,13 +29,26 @@ pub fn draw(f: &mut Frame, app: &mut App, dt: f32) {
     if app.help {
         help_popup(f, app.theme());
     }
+    if let Some(cockpit) = &app.theme().cockpit {
+        // Done last so canvases and popups can't punch through to the terminal.
+        for cell in &mut f.buffer_mut().content {
+            if cell.bg == Color::Reset {
+                cell.bg = cockpit.screen;
+            }
+        }
+    }
 }
 
 fn panel<'a>(title: &'a str, th: &Theme) -> Block<'a> {
+    let title_style = Style::new().fg(th.text).add_modifier(Modifier::BOLD);
+    let (border_type, title_style) = match &th.cockpit {
+        Some(c) => (BorderType::Plain, title_style.bg(c.placard)),
+        None => (BorderType::Rounded, title_style),
+    };
     Block::bordered()
-        .border_type(BorderType::Rounded)
+        .border_type(border_type)
         .border_style(Style::new().fg(th.border))
-        .title(Span::styled(title, Style::new().fg(th.text).add_modifier(Modifier::BOLD)))
+        .title(Span::styled(title, title_style))
 }
 
 fn dashboard(f: &mut Frame, area: Rect, app: &mut App, dt: f32) {
@@ -522,7 +535,9 @@ fn vu_needle(f: &mut Frame, area: Rect, app: &App, ch: usize) {
 fn footer(f: &mut Frame, area: Rect, app: &App) {
     let th = app.theme();
     let key = |k: &'static str| Span::styled(k, Style::new().fg(th.grad(0.0)).add_modifier(Modifier::BOLD));
-    let txt = |t: String| Span::styled(t, Style::new().fg(th.border));
+    // Border grey is unreadable on a placard-coloured footer.
+    let txt_fg = if th.cockpit.is_some() { th.text } else { th.border };
+    let txt = |t: String| Span::styled(t, Style::new().fg(txt_fg));
     let view = match app.view {
         View::Dashboard => "dashboard",
         View::Spectrum => "spectrum",
@@ -546,6 +561,9 @@ fn footer(f: &mut Frame, area: Rect, app: &App) {
         key("q"),
         txt(" quit".into()),
     ]);
+    if let Some(c) = &th.cockpit {
+        f.buffer_mut().set_style(area, Style::new().bg(c.placard));
+    }
     f.render_widget(Line::from(spans), area);
 }
 
